@@ -3,18 +3,21 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 class Autoencoder(nn.Module):
-    def __init__(self, encoder, decoder):
+    def __init__(self, input_size, hidden_size):
         """
         General Autoencoder. Takes in as input Encoder and Decoder layers.
         :param encoder: something that's nn.Module
         :param decoder: something that's also nn.Module.
         """
         super().__init__()
-        self.encoder = encoder
-        self.decoder = decoder
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+
+        self.encoder = nn.Linear(self.input_size, self.hidden_size)
+        self.decoder = nn.Linear(self.hidden_size, self.input_size)
 
     def forward(self, input_tensor):
-        encoded = F.tanh(self.encoder(input_tensor))
+        encoded = F.relu(self.encoder(input_tensor))
         decoded = F.tanh(self.decoder(encoded))
         return encoded, decoded
 
@@ -70,6 +73,8 @@ class ImageDecoder(nn.Module):
 class ImageAutoencoder(nn.Module):
     def __init__(self, in_channels, hidden_size, out_channels):
         super(ImageAutoencoder, self).__init__()
+
+        self.hidden_size = hidden_size
 
         self.encoder = ImageEncoder(in_channels, hidden_size)
         self.decoder = ImageDecoder(hidden_size, out_channels)
