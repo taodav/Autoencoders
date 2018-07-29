@@ -17,6 +17,6 @@ def get_train_valid_loaders(dataset, valid_size=0.1, shuffle=True, seed=1234, ba
 
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, sampler=train_sampler)
 
-    valid_loader = DataLoader(dataset, batch_size, shuffle=shuffle, sampler=valid_sampler)
+    valid_loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, sampler=valid_sampler)
 
     return train_loader, valid_loader
