@@ -1,6 +1,7 @@
 import torch
 import shutil
 import torch.nn.functional as F
+from utils import device
 from argparse import ArgumentParser
 
 
@@ -24,6 +25,16 @@ def to_img(x):
     return x
 
 
+def load_checkpoint(resume_path, model, optimizer):
+    print("Loading checkpoint")
+    checkpoint = torch.load(resume_path)
+    model.load_state_dict(checkpoint['state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    print("Loaded checkpoint")
+
+    return model, optimizer
+
+
 def get_args():
     parser = ArgumentParser(description='Image Autoencoder Experiment')
     parser.add_argument('--epochs', type=int, default=3)
@@ -39,7 +50,7 @@ def get_args():
     parser.add_argument('--resume_path', type=str, default='./checkpoints/model_checkpoint.pth.tar')
     parser.add_argument('--save_path', type=str, default='./checkpoints')
     parser.add_argument('--resume_snapshot', dest='resume_snapshot', default='store_true')
-    parser.set_defaults(resume_snapshot=False)
+    parser.set_defaults(resume_snapshot=True)
     args = parser.parse_args()
     return args
 

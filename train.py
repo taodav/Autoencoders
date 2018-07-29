@@ -5,7 +5,8 @@ from tqdm import tqdm
 from torchvision.utils import save_image
 from utils import device
 from utils.dataset import get_train_valid_loaders
-from utils.helpers import get_args, save_checkpoint, to_img, kl_divergence
+from evaluate import calc_validation_loss
+from utils.helpers import get_args, save_checkpoint, to_img, kl_divergence, load_checkpoint
 
 class AutoencoderTrainer:
     def __init__(self, dataset, model):
@@ -18,11 +19,7 @@ class AutoencoderTrainer:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.args.lr)
 
         if self.args.resume_snapshot and os.path.isfile(self.args.resume_path):
-            print("Loading checkpoint")
-            checkpoint = torch.load(self.args.resume_path)
-            self.model.load_state_dict(checkpoint['state_dict'])
-            self.optimizer.load_state_dict(checkpoint['optimizer'])
-            print("Loaded checkpoint")
+            self.model, self.optimizer = load_checkpoint(self.args.resume_path, self.model, self.optimizer)
 
         self.loss_func = nn.MSELoss()
         self.train_loader, self.valid_loader = get_train_valid_loaders(self.dataset)
@@ -56,14 +53,9 @@ class AutoencoderTrainer:
                     save_image(x, './images/x_{}.png'.format(it))
                     save_image(x_hat, './images/x_hat_{}.png'.format(it))
 
-            with torch.no_grad():
-                print("Calculating validation loss")
-                valid_loss = 0
-                for it, data in enumerate(self.valid_loader):
-                    vs_loss, encoded, decoded = self.train_step(*data)
-                    valid_loss += vs_loss
+            valid_loss = calc_validation_loss(self.valid_loader, self.model, self.loss_func)
 
-                print("validation loss: %.6f" % (valid_loss / it))
+
 
     def train_step(self, image, label):
         image, label = image.to(device), label.to(device)
