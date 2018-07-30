@@ -9,7 +9,6 @@ def calc_validation_loss(valid_loader, model, loss_func):
         for it, data in enumerate(valid_loader):
             image, label = data
             image, label = image.to(device), label.to(device)
-            image = image.view(-1, 28 * 28)
             encoded, decoded = model(image)
             loss = loss_func(decoded, image)
             valid_loss += loss

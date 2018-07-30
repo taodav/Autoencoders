@@ -8,6 +8,7 @@ from utils.dataset import get_train_valid_loaders
 from evaluate import calc_validation_loss
 from utils.helpers import get_args, save_checkpoint, to_img, kl_divergence, load_checkpoint
 
+
 class AutoencoderTrainer:
     def __init__(self, dataset, model):
         self.dataset = dataset
@@ -29,7 +30,7 @@ class AutoencoderTrainer:
         for ep in range(self.args.epochs):
             print("Training epoch %d" % (ep + 1))
 
-            pbar = tqdm(enumerate(self.dataset, 1), total=len(self.dataset))
+            pbar = tqdm(enumerate(self.train_loader, 1), total=len(self.train_loader))
             epoch_loss = 0
             for it, data in pbar:
                 image, label = data
@@ -47,11 +48,11 @@ class AutoencoderTrainer:
                         'state_dict': self.model.state_dict(),
                         'optimizer': self.optimizer.state_dict()
                     }, is_best)
-                if it % 10000 == 0:
-                    x = to_img(image.cpu().data)
-                    x_hat = to_img(decoded.cpu().data)
-                    save_image(x, './images/x_{}.png'.format(it))
-                    save_image(x_hat, './images/x_hat_{}.png'.format(it))
+
+            x = to_img(image.cpu().data)
+            x_hat = to_img(decoded.cpu().data)
+            save_image(x, './images/x_{}.png'.format(ep))
+            save_image(x_hat, './images/x_{}_hat.png'.format(ep))
 
             valid_loss = calc_validation_loss(self.valid_loader, self.model, self.loss_func)
 
@@ -59,7 +60,6 @@ class AutoencoderTrainer:
 
     def train_step(self, image, label):
         image, label = image.to(device), label.to(device)
-        image = image.view(-1, 28 * 28)
         encoded, decoded = self.model(image)
 
         loss = self.loss_func(decoded, image)
@@ -75,3 +75,4 @@ class AutoencoderTrainer:
         self.optimizer.step()
 
         return loss, encoded, decoded
+

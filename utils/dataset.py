@@ -10,7 +10,7 @@ def get_train_valid_loaders(dataset, valid_size=0.1, shuffle=True, seed=1234, ba
         np.random.seed(seed)
         np.random.shuffle(indices)
 
-    train_idx, valid_idx = indices[:split], indices[split:]
+    train_idx, valid_idx = indices[split:], indices[:split]
 
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
