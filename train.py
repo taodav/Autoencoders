@@ -25,7 +25,9 @@ class AutoencoderTrainer:
         if self.args.resume_snapshot and os.path.isfile(self.args.resume_path):
             self.model, self.optimizer = load_checkpoint(self.args.resume_path, self.model, self.optimizer)
 
-        self.loss_func = nn.MSELoss()
+        self.loss_func = nn.BCELoss()
+        self.loss_func.size_average = False
+        # self.loss_func = nn.MSELoss()
 
         self.train_loader, self.valid_loader = get_train_valid_loaders(self.dataset)
         # configure('./stats/%f' % (time.time()))
@@ -67,13 +69,18 @@ class AutoencoderTrainer:
 
             valid_loss = calc_validation_loss(self.valid_loader, self.model, self.loss_func)
 
-
+    def kl_loss(self, mu, logvar):
+        kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - torch.exp(logvar))
+        kl_loss /= mu.size(0) * self.model.hidden_size
+        return kl_loss
 
     def train_step(self, image, label):
         image, label = image.to(device), label.to(device)
         encoded, decoded, mu, logvar = self.model(image)
 
-        loss = self.loss_func(decoded, image)
+        image_flat = image.view(-1)
+        decoded_flat = decoded.view(-1)
+        loss = self.loss_func(decoded_flat, image_flat)
 
         if self.args.sparse:
             activations = encoded
@@ -82,9 +89,7 @@ class AutoencoderTrainer:
             loss += sparsity_penalty
 
         elif self.args.vae:
-            reconstruction_loss = loss
-            KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-            loss = reconstruction_loss + KLD
+            loss += self.kl_loss(mu, logvar)
 
         self.optimizer.zero_grad()
         loss.backward()
