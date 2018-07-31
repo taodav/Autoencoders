@@ -1,8 +1,11 @@
 import torch
 import os
+# import time
+
 from torch import nn
 from tqdm import tqdm
 from torchvision.utils import save_image
+# from tensorboard_logger import configure, log_value
 from utils import device
 from utils.dataset import get_train_valid_loaders
 from evaluate import calc_validation_loss
@@ -23,7 +26,9 @@ class AutoencoderTrainer:
             self.model, self.optimizer = load_checkpoint(self.args.resume_path, self.model, self.optimizer)
 
         self.loss_func = nn.MSELoss()
+
         self.train_loader, self.valid_loader = get_train_valid_loaders(self.dataset)
+        # configure('./stats/%f' % (time.time()))
 
     def train(self):
         min_loss = float('inf')
@@ -31,18 +36,24 @@ class AutoencoderTrainer:
             print("Training epoch %d" % (ep + 1))
 
             pbar = tqdm(enumerate(self.train_loader, 1), total=len(self.train_loader))
-            epoch_loss = 0
+            running_loss_print = 0
+            running_loss_save = 0
             for it, data in pbar:
                 image, label = data
                 loss, encoded, decoded = self.train_step(image, label)
-                epoch_loss += loss
+                running_loss_print += loss
+                running_loss_save += loss
 
                 if it % self.args.log_every == 0:
-                    pbar.set_description('it: %d, train_loss: %.6f' % (it, epoch_loss / it))
+                    pbar.set_description('it: %d, train_loss: %.6f' % (it, running_loss_print / self.args.log_every))
+                    running_loss_print = 0
 
                 if it % self.args.save_every == 0:
-                    is_best = min_loss > epoch_loss
-                    min_loss = epoch_loss if is_best else min_loss
+                    avg_running_loss = (running_loss_save / self.args.save_every)
+                    is_best = min_loss > avg_running_loss
+                    min_loss = avg_running_loss if is_best else min_loss
+                    running_loss_save = 0
+
                     save_checkpoint({
                         'epoch': ep,
                         'state_dict': self.model.state_dict(),
@@ -60,7 +71,7 @@ class AutoencoderTrainer:
 
     def train_step(self, image, label):
         image, label = image.to(device), label.to(device)
-        encoded, decoded = self.model(image)
+        encoded, decoded, mu, logvar = self.model(image)
 
         loss = self.loss_func(decoded, image)
 
@@ -69,6 +80,11 @@ class AutoencoderTrainer:
             rho_hat = torch.sum(activations, dim=0, keepdim=True)
             sparsity_penalty = self.args.beta * kl_divergence(self.rho, rho_hat)
             loss += sparsity_penalty
+
+        elif self.args.vae:
+            reconstruction_loss = loss
+            KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+            loss = reconstruction_loss + KLD
 
         self.optimizer.zero_grad()
         loss.backward()

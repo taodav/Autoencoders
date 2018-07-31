@@ -23,10 +23,54 @@ class Autoencoder(nn.Module):
         return encoded, decoded
 
 
+class VariationalAutoencoder(nn.Module):
+    def __init__(self, in_channels, hidden_size, out_channels):
+        super(VariationalAutoencoder, self).__init__()
+        self.hidden_size = hidden_size
+
+        self.encoder = ImageEncoder(in_channels, hidden_size, flatten=False)
+        self.decoder = ImageDecoder(hidden_size, out_channels)
+
+        self.mean_dense = nn.Linear(32, hidden_size)
+        self.std_dense = nn.Linear(32, hidden_size)
+
+    def forward(self, image):
+        encoded = self.encoder(image)
+        mean = self.mean_dense(encoded)
+        log_var = self.std_dense(encoded)
+        log_std = 0.5 * log_var
+        if self.training:
+            std = torch.exp(log_std)
+            eps = torch.randn_like(std)
+            encoded = eps.mul(std).add_(mean)
+        else:
+            encoded = mean
+
+        decoded = F.sigmoid(self.decoder(encoded))
+
+        return encoded, decoded, mean, log_var
+        
+
+class ImageAutoencoder(nn.Module):
+    def __init__(self, in_channels, hidden_size, out_channels):
+        super(ImageAutoencoder, self).__init__()
+
+        self.hidden_size = hidden_size
+
+        self.encoder = ImageEncoder(in_channels, hidden_size)
+        self.decoder = ImageDecoder(hidden_size, out_channels)
+
+    def forward(self, image):
+        encoded, _ = self.encoder(image)
+        decoded = F.sigmoid(self.decoder(encoded))
+        return encoded, decoded, None, None
+
+
 class ImageEncoder(nn.Module):
-    def __init__(self, in_channels, hidden_size):
+    def __init__(self, in_channels, hidden_size, flatten=True):
         super(ImageEncoder, self).__init__()
 
+        self.flatten = flatten
         self.in_channels = in_channels
         self.hidden_size = hidden_size  # should be less than or equal to 8 * 3 * 3
 
@@ -39,10 +83,11 @@ class ImageEncoder(nn.Module):
         o = F.relu(F.max_pool2d(o, 2))
         o = self.conv2(o)
         o =F.relu(F.max_pool2d(o, 2))
-        o = o.view(o.size(0), -1)
-        logits = self.linear(o)
+        o = o.view(o.size(0), -1)  # b x 32
+        if self.flatten:
+            o = self.linear(o)
 
-        return logits
+        return o
 
 
 class ImageDecoder(nn.Module):
@@ -70,17 +115,5 @@ class ImageDecoder(nn.Module):
         return o
 
 
-class ImageAutoencoder(nn.Module):
-    def __init__(self, in_channels, hidden_size, out_channels):
-        super(ImageAutoencoder, self).__init__()
 
-        self.hidden_size = hidden_size
-
-        self.encoder = ImageEncoder(in_channels, hidden_size)
-        self.decoder = ImageDecoder(hidden_size, out_channels)
-
-    def forward(self, image):
-        encoded = self.encoder(image)
-        decoded = F.sigmoid(self.decoder(encoded))
-        return encoded, decoded
 
