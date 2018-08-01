@@ -25,9 +25,9 @@ class AutoencoderTrainer:
         if self.args.resume_snapshot and os.path.isfile(self.args.resume_path):
             self.model, self.optimizer = load_checkpoint(self.args.resume_path, self.model, self.optimizer)
 
-        self.loss_func = nn.BCELoss()
-        self.loss_func.size_average = False
-        # self.loss_func = nn.MSELoss()
+        # self.loss_func = nn.BCELoss()
+        # self.loss_func.size_average = False
+        self.loss_func = nn.MSELoss()
 
         self.train_loader, self.valid_loader = get_train_valid_loaders(self.dataset)
         # configure('./stats/%f' % (time.time()))
@@ -78,9 +78,11 @@ class AutoencoderTrainer:
         image, label = image.to(device), label.to(device)
         encoded, decoded, mu, logvar = self.model(image)
 
-        image_flat = image.view(-1)
-        decoded_flat = decoded.view(-1)
-        loss = self.loss_func(decoded_flat, image_flat)
+        # image_flat = image.view(-1)
+        # decoded_flat = decoded.view(-1)
+        # loss = self.loss_func(decoded_flat, image_flat)
+
+        loss = self.loss_func(decoded, image)
 
         if self.args.sparse:
             activations = encoded

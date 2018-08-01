@@ -136,7 +136,7 @@ class ImageDecoder(nn.Module):
         o = o.view(o.size(0), self.ngf * 4, 3, 3)  # b x ngf * 4 x 3 x 3
         o = F.relu(self.bn1(self.convT1(o)))  # b x ngf * 2 x 6 x 6
         o = F.relu(self.bn2(self.convT2(o)))  # b x ngf x 12 x 12
-        o = F.relu(self.bn3(self.convT3(o)))
+        o = self.bn3(self.convT3(o))
 
         return o
 
